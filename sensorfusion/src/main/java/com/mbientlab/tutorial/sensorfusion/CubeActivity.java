@@ -4,7 +4,6 @@
 package com.mbientlab.tutorial.sensorfusion;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -32,7 +31,7 @@ public class CubeActivity extends AppCompatActivity implements ServiceConnection
     @Override
     public void onBackPressed() {
         board.getModule(Settings.class).configureConnectionParameters()
-                .maxConnectionInterval(100f)
+                .maxConnectionInterval(125f)
                 .commit();
         board.getModule(SensorFusion.class).stop();
         board.getModule(Debug.class).disconnect();
@@ -90,10 +89,6 @@ public class CubeActivity extends AppCompatActivity implements ServiceConnection
     public void onServiceConnected(ComponentName name, IBinder service) {
         BtleService.LocalBinder binder = (BtleService.LocalBinder) service;
         board = binder.getMetaWearBoard(btDevice);
-
-        board.getModule(Settings.class).configureConnectionParameters()
-                .maxConnectionInterval(7.5f)
-                .commit();
 
         SensorFusion sensorFusion = board.getModule(SensorFusion.class);
         sensorFusion.configure()

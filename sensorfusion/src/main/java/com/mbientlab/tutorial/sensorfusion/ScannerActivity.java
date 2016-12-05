@@ -30,6 +30,7 @@ import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v7.app.AlertDialog;
@@ -41,6 +42,7 @@ import com.mbientlab.bletoolbox.scanner.BleScannerFragment.ScannerCommunicationB
 import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.android.BtleService;
 import com.mbientlab.metawear.module.SensorFusion;
+import com.mbientlab.metawear.module.Settings;
 
 import java.util.UUID;
 
@@ -126,6 +128,10 @@ public class ScannerActivity extends AppCompatActivity implements ScannerCommuni
                                     })
                                     .show();
                         } else {
+                            mwBoard.getModule(Settings.class).configureConnectionParameters()
+                                    .maxConnectionInterval(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? 11.25f : 7.5f)
+                                    .commit();
+
                             Intent navActivityIntent = new Intent(ScannerActivity.this, CubeActivity.class);
                             navActivityIntent.putExtra(CubeActivity.EXTRA_BT_DEVICE, device);
                             startActivityForResult(navActivityIntent, REQUEST_START_APP);

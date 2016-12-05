@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/MetaWearTutorial-Android.iml" filepath="$PROJECT_DIR$/MetaWearTutorial-Android.iml" />
       <module fileurl="file://$PROJECT_DIR$/multimw/multimw.iml" filepath="$PROJECT_DIR$/multimw/multimw.iml" />
+      <module fileurl="file://$PROJECT_DIR$/sensorfusion/sensorfusion.iml" filepath="$PROJECT_DIR$/sensorfusion/sensorfusion.iml" />
     </modules>
   </component>
 </project>

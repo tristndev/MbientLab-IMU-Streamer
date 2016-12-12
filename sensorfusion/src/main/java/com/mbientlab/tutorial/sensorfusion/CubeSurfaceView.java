@@ -6,7 +6,7 @@ package com.mbientlab.tutorial.sensorfusion;
 import android.content.Context;
 import android.opengl.GLSurfaceView;
 
-import com.mbientlab.metawear.module.SensorFusion.Quaternion;
+import com.mbientlab.metawear.data.Quaternion;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -24,6 +24,7 @@ public class CubeSurfaceView extends GLSurfaceView {
 
     public void updateRotation(Quaternion value) {
         mRenderer.quaterion = value;
+        requestRender();
     }
 
     private class CubeRenderer implements GLSurfaceView.Renderer {
@@ -39,9 +40,9 @@ public class CubeSurfaceView extends GLSurfaceView {
 
             // Convert quaterion values to glRotatef compatible values
             // http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-17-quaternions/
-            float halfAngle = (float) Math.acos(quaterion.w);
+            float halfAngle = (float) Math.acos(quaterion.w());
             float halfSin = (float) Math.sin(halfAngle);
-            gl.glRotatef((float) (halfAngle * 360f / Math.PI), quaterion.x / halfSin, quaterion.y / halfSin, quaterion.z / halfSin);
+            gl.glRotatef((float) (halfAngle * 360f / Math.PI), quaterion.x() / halfSin, quaterion.y() / halfSin, quaterion.z() / halfSin);
 
             gl.glEnableClientState(GL10.GL_VERTEX_ARRAY);
             gl.glEnableClientState(GL10.GL_COLOR_ARRAY);

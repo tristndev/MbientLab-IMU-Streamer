@@ -41,7 +41,7 @@ import com.mbientlab.bletoolbox.scanner.BleScannerFragment;
 import com.mbientlab.bletoolbox.scanner.BleScannerFragment.ScannerCommunicationBus;
 import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.android.BtleService;
-import com.mbientlab.metawear.module.SensorFusion;
+import com.mbientlab.metawear.module.SensorFusionBosch;
 import com.mbientlab.metawear.module.Settings;
 
 import java.util.UUID;
@@ -117,7 +117,7 @@ public class ScannerActivity extends AppCompatActivity implements ScannerCommuni
                     if (!task.isCancelled()) {
                         connectDialog.dismiss();
 
-                        if (mwBoard.getModule(SensorFusion.class) == null) {
+                        if (mwBoard.getModule(SensorFusionBosch.class) == null) {
                             mwBoard.disconnectAsync();
                             new AlertDialog.Builder(ScannerActivity.this)
                                     .setCancelable(false)

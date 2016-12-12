@@ -7,19 +7,16 @@ import android.bluetooth.BluetoothDevice;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.os.Handler;
 import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
 import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.android.BtleService;
+import com.mbientlab.metawear.data.Quaternion;
 import com.mbientlab.metawear.module.Debug;
-import com.mbientlab.metawear.module.SensorFusion;
-import com.mbientlab.metawear.module.SensorFusion.AccRange;
-import com.mbientlab.metawear.module.SensorFusion.GyroRange;
-import com.mbientlab.metawear.module.SensorFusion.Mode;
-import com.mbientlab.metawear.module.SensorFusion.Quaternion;
+import com.mbientlab.metawear.module.SensorFusionBosch;
+import com.mbientlab.metawear.module.SensorFusionBosch.*;
 import com.mbientlab.metawear.module.Settings;
 
 public class CubeActivity extends AppCompatActivity implements ServiceConnection {
@@ -30,7 +27,7 @@ public class CubeActivity extends AppCompatActivity implements ServiceConnection
 
     @Override
     public void onBackPressed() {
-        board.getModule(SensorFusion.class).stop();
+        board.getModule(SensorFusionBosch.class).stop();
         board.getModule(Settings.class).configureConnectionParameters()
                 .maxConnectionInterval(125f)
                 .commit();
@@ -74,35 +71,26 @@ public class CubeActivity extends AppCompatActivity implements ServiceConnection
         mGLSurfaceView.onPause();
     }
 
-    private final long FPS = (long) ((1 / 30f) * 1000L);
-    private Handler taskScheduler = new Handler();
     private CubeSurfaceView mGLSurfaceView;
-    private final Runnable updateScene = new Runnable() {
-        @Override
-        public void run() {
-            mGLSurfaceView.requestRender();
-            taskScheduler.postDelayed(updateScene, FPS);
-        }
-    };
 
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
         BtleService.LocalBinder binder = (BtleService.LocalBinder) service;
         board = binder.getMetaWearBoard(btDevice);
 
-        SensorFusion sensorFusion = board.getModule(SensorFusion.class);
+        SensorFusionBosch sensorFusion = board.getModule(SensorFusionBosch.class);
         sensorFusion.configure()
                 .mode(Mode.NDOF)
                 .accRange(AccRange.AR_2G)
                 .gyroRange(GyroRange.GR_250DPS)
                 .commit();
-        sensorFusion.quaternion().addRoute(source -> source.stream((msg, env) -> mGLSurfaceView.updateRotation(msg.value(Quaternion.class))))
-                .continueWith(ignored -> {
-                    sensorFusion.quaternion().start();
-                    sensorFusion.start();
-                    return null;
-                });
-        taskScheduler.postDelayed(updateScene, FPS);
+        sensorFusion.quaternion().addRoute(source ->
+                source.limit(33).stream((msg, env) -> mGLSurfaceView.updateRotation(msg.value(Quaternion.class)))
+        ).continueWith(ignored -> {
+            sensorFusion.quaternion().start();
+            sensorFusion.start();
+            return null;
+        });
     }
 
     @Override

@@ -57,3 +57,11 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+ext {
+    // copied global configuration from parse ui repo
+    // https://github.com/ParsePlatform/ParseUI-Android/blob/master/build.gradle
+    compileSdkVersion = 25
+    buildToolsVersion = "25.0.2"
+    metawearSdk = 'com.mbientlab:metawear:3.0.0'
+}

@@ -83,7 +83,7 @@ public class ScannerActivity extends AppCompatActivity implements ScannerCommuni
 
     @Override
     public UUID[] getFilterServiceUuids() {
-        return new UUID[] {MetaWearBoard.METAWEAR_SERVICE_UUID};
+        return new UUID[] {MetaWearBoard.METAWEAR_GATT_SERVICE};
     }
 
     @Override
@@ -128,7 +128,7 @@ public class ScannerActivity extends AppCompatActivity implements ScannerCommuni
                                     })
                                     .show();
                         } else {
-                            mwBoard.getModule(Settings.class).configureConnectionParameters()
+                            mwBoard.getModule(Settings.class).editBleConnParams()
                                     .maxConnectionInterval(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? 11.25f : 7.5f)
                                     .commit();
 

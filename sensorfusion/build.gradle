@@ -25,13 +25,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion "24.0.2"
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
 
     defaultConfig {
         applicationId "com.mbientlab.tutorial.sensorfusion"
         minSdkVersion 18
-        targetSdkVersion 24
+        targetSdkVersion 25
         versionCode 1
         versionName "1.0"
 
@@ -58,9 +58,9 @@ dependencies {
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    compile 'com.android.support:appcompat-v7:24.2.1'
-    compile 'com.mbientlab:metawear:3.0.0-beta03'
+    compile 'com.android.support:appcompat-v7:25.1.1'
+    compile rootProject.ext.metawearSdk
     compile 'com.mbientlab.bletoolbox:scanner:0.2.3'
-    compile 'com.android.support:design:24.2.1'
+    compile 'com.android.support:design:25.1.1'
     testCompile 'junit:junit:4.12'
 }

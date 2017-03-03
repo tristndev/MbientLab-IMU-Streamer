@@ -37,44 +37,41 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.ListView;
 
-import com.mbientlab.metawear.AsyncOperation;
-import com.mbientlab.metawear.Message;
-import com.mbientlab.metawear.MetaWearBleService;
+import com.mbientlab.metawear.AsyncDataProducer;
 import com.mbientlab.metawear.MetaWearBoard;
-import com.mbientlab.metawear.RouteManager;
-import com.mbientlab.metawear.UnsupportedModuleException;
+import com.mbientlab.metawear.android.BtleService;
+import com.mbientlab.metawear.data.SensorOrientation;
 import com.mbientlab.metawear.module.Accelerometer;
+import com.mbientlab.metawear.module.AccelerometerBosch;
+import com.mbientlab.metawear.module.AccelerometerMma8452q;
 import com.mbientlab.metawear.module.Debug;
 import com.mbientlab.metawear.module.Switch;
 
 import java.util.HashMap;
 
+import bolts.Task;
+
 /**
  * A placeholder fragment containing a simple view.
  */
 public class MainActivityFragment extends Fragment implements ServiceConnection {
-    private final Handler taskScheduler;
     private final HashMap<DeviceState, MetaWearBoard> stateToBoards;
-    private MetaWearBleService.LocalBinder binder;
+    private BtleService.LocalBinder binder;
 
     private ConnectedDevicesAdapter connectedDevices= null;
 
     public MainActivityFragment() {
         stateToBoards = new HashMap<>();
-        taskScheduler= new Handler();
     }
 
     @Override
@@ -82,7 +79,7 @@ public class MainActivityFragment extends Fragment implements ServiceConnection 
         super.onCreate(savedInstanceState);
 
         Activity owner= getActivity();
-        owner.getApplicationContext().bindService(new Intent(owner, MetaWearBleService.class), this, Context.BIND_AUTO_CREATE);
+        owner.getApplicationContext().bindService(new Intent(owner, BtleService.class), this, Context.BIND_AUTO_CREATE);
     }
 
 
@@ -102,58 +99,52 @@ public class MainActivityFragment extends Fragment implements ServiceConnection 
         connectedDevices.add(newDeviceState);
 
         stateToBoards.put(newDeviceState, newBoard);
-        newBoard.setConnectionStateHandler(new MetaWearBoard.ConnectionStateHandler() {
-            @Override
-            public void connected() {
-                newDeviceState.connecting= false;
-                connectedDevices.notifyDataSetChanged();
 
-                try {
-                    newBoard.getModule(Switch.class).routeData().fromSensor().stream("switch_stream").commit()
-                            .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
-                                @Override
-                                public void success(RouteManager result) {
-                                    result.subscribe("switch_stream", new RouteManager.MessageHandler() {
-                                        @Override
-                                        public void process(Message msg) {
-                                            newDeviceState.pressed = msg.getData(Boolean.class);
-                                            connectedDevices.notifyDataSetChanged();
-                                        }
-                                    });
-                                }
-                            });
-                    final Accelerometer accelModule= newBoard.getModule(Accelerometer.class);
-                    accelModule.routeData().fromOrientation().stream("orientation_stream").commit()
-                            .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
-                                @Override
-                                public void success(RouteManager result) {
-                                    result.subscribe("orientation_stream", new RouteManager.MessageHandler() {
-                                        @Override
-                                        public void process(Message msg) {
-                                            newDeviceState.deviceOrientation = msg.getData(Accelerometer.BoardOrientation.class).toString();
-                                            connectedDevices.notifyDataSetChanged();
-                                        }
-                                    });
-                                    accelModule.enableOrientationDetection();
-                                    accelModule.start();
-                                }
-                            });
-                } catch (UnsupportedModuleException e) {
-                    Snackbar.make(getActivity().findViewById(R.id.activity_main_layout), e.getLocalizedMessage(), Snackbar.LENGTH_SHORT).show();
+        newBoard.onUnexpectedDisconnect((status) -> getActivity().runOnUiThread(() -> connectedDevices.remove(newDeviceState)));
+        newBoard.connectAsync().continueWith(task -> {
+            if (task.isFaulted()) {
+                connectedDevices.remove(newDeviceState);
+            } else {
+                getActivity().runOnUiThread(() -> {
+                    newDeviceState.connecting= false;
+                    connectedDevices.notifyDataSetChanged();
+                });
+
+                Accelerometer accelerometer = newBoard.getModule(Accelerometer.class);
+
+                AsyncDataProducer orientation;
+                if (accelerometer instanceof AccelerometerBosch) {
+                    orientation = ((AccelerometerBosch) accelerometer).orientation();
+                } else {
+                    orientation = ((AccelerometerMma8452q) accelerometer).orientation();
                 }
+                orientation.addRouteAsync(source -> source.stream((data, env) ->
+                        getActivity().runOnUiThread(() -> {
+                            newDeviceState.deviceOrientation = data.value(SensorOrientation.class).toString();
+                            connectedDevices.notifyDataSetChanged();
+                        })
+                )).onSuccessTask(ignored -> newBoard.getModule(Switch.class).state().addRouteAsync(source ->
+                        source.stream((data, env) -> getActivity().runOnUiThread(() -> {
+                            newDeviceState.pressed = data.value(Boolean.class);
+                            connectedDevices.notifyDataSetChanged();
+                        }))
+                )).continueWith(routeTask -> {
+                    if (routeTask.isFaulted()) {
+                        Snackbar.make(getActivity().findViewById(R.id.activity_main_layout), routeTask.getError().getLocalizedMessage(), Snackbar.LENGTH_SHORT).show();
+                        newBoard.tearDown();
+                        newBoard.disconnectAsync().continueWith(ignored -> {
+                            connectedDevices.remove(newDeviceState);
+                            return null;
+                        });
+                    } else {
+                        orientation.start();
+                        accelerometer.start();
+                    }
+                    return null;
+                }, Task.UI_THREAD_EXECUTOR);
             }
-
-            @Override
-            public void disconnected() {
-                connectedDevices.remove(newDeviceState);
-            }
-
-            @Override
-            public void failure(int status, Throwable error) {
-                connectedDevices.remove(newDeviceState);
-            }
+            return null;
         });
-        newBoard.connect();
     }
 
     @Override
@@ -168,42 +159,29 @@ public class MainActivityFragment extends Fragment implements ServiceConnection 
     public void onViewCreated(View view, Bundle savedInstanceState) {
         ListView connectedDevicesView= (ListView) view.findViewById(R.id.connected_devices);
         connectedDevicesView.setAdapter(connectedDevices);
-        connectedDevicesView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> parent, View view,
-                                           int position, long id) {
-                DeviceState current= connectedDevices.getItem(position);
-                final MetaWearBoard selectedBoard= stateToBoards.get(current);
+        connectedDevicesView.setOnItemLongClickListener((parent, view1, position, id) -> {
+            DeviceState current= connectedDevices.getItem(position);
+            final MetaWearBoard selectedBoard= stateToBoards.get(current);
 
-                try {
-                    Accelerometer accelModule = selectedBoard.getModule(Accelerometer.class);
-                    accelModule.stop();
-                    accelModule.disableOrientationDetection();
-
-                    selectedBoard.removeRoutes();
-                    selectedBoard.getModule(Debug.class).disconnect();
-                } catch (UnsupportedModuleException e) {
-                    // Not a big deal if the try catch fails
-                    Log.w("multimw", e);
-
-                    taskScheduler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            selectedBoard.disconnect();
-                        }
-                    }, 100);
-                }
-
-                connectedDevices.remove(current);
-                return false;
+            Accelerometer accelerometer = selectedBoard.getModule(Accelerometer.class);
+            accelerometer.stop();
+            if (accelerometer instanceof AccelerometerBosch) {
+                ((AccelerometerBosch) accelerometer).orientation().stop();
+            } else {
+                ((AccelerometerMma8452q) accelerometer).orientation().stop();
             }
+
+            selectedBoard.tearDown();
+            selectedBoard.getModule(Debug.class).disconnectAsync();
+
+            connectedDevices.remove(current);
+            return false;
         });
     }
 
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
-        binder= (MetaWearBleService.LocalBinder) service;
-        binder.executeOnUiThread();
+        binder= (BtleService.LocalBinder) service;
     }
 
     @Override

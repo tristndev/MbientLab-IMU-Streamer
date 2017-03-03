@@ -28,10 +28,10 @@ public class CubeActivity extends AppCompatActivity implements ServiceConnection
     @Override
     public void onBackPressed() {
         board.getModule(SensorFusionBosch.class).stop();
-        board.getModule(Settings.class).configureConnectionParameters()
+        board.getModule(Settings.class).editBleConnParams()
                 .maxConnectionInterval(125f)
                 .commit();
-        board.getModule(Debug.class).disconnect();
+        board.getModule(Debug.class).disconnectAsync();
 
         super.onBackPressed();
     }
@@ -84,7 +84,7 @@ public class CubeActivity extends AppCompatActivity implements ServiceConnection
                 .accRange(AccRange.AR_2G)
                 .gyroRange(GyroRange.GR_250DPS)
                 .commit();
-        sensorFusion.quaternion().addRoute(source ->
+        sensorFusion.quaternion().addRouteAsync(source ->
                 source.limit(33).stream((msg, env) -> mGLSurfaceView.updateRotation(msg.value(Quaternion.class)))
         ).continueWith(ignored -> {
             sensorFusion.quaternion().start();

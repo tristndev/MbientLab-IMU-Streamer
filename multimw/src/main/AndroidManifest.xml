@@ -39,7 +39,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <service android:name="com.mbientlab.metawear.MetaWearBleService" />
+        <service android:name="com.mbientlab.metawear.android.BtleService" />
 
         <activity
             android:name=".MainActivity"

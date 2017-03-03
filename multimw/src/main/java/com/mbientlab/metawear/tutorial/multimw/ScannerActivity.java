@@ -47,7 +47,7 @@ public class ScannerActivity extends AppCompatActivity implements ScannerCommuni
 
     static {
         SERVICE_UUIDS = new UUID[] {
-                MetaWearBoard.METAWEAR_SERVICE_UUID,
+                MetaWearBoard.METAWEAR_GATT_SERVICE,
         };
     }
 

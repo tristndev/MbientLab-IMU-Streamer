@@ -6,7 +6,6 @@ import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.os.Build;
 import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -14,7 +13,6 @@ import android.os.Bundle;
 import com.mbientlab.bletoolbox.scanner.BleScannerFragment;
 import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.android.BtleService;
-import com.mbientlab.metawear.module.Settings;
 
 import java.util.UUID;
 
@@ -24,7 +22,7 @@ public class MainActivity extends AppCompatActivity implements BleScannerFragmen
     public static final int REQUEST_START_APP= 1;
 
     private BtleService.LocalBinder serviceBinder;
-    private MetaWearBoard mwBoard;
+    private MetaWearBoard metawear;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +62,7 @@ public class MainActivity extends AppCompatActivity implements BleScannerFragmen
 
     @Override
     public void onDeviceSelected(final BluetoothDevice device) {
-        mwBoard= serviceBinder.getMetaWearBoard(device);
+        metawear = serviceBinder.getMetaWearBoard(device);
 
         final ProgressDialog connectDialog = new ProgressDialog(this);
         connectDialog.setTitle(getString(R.string.title_connecting));
@@ -72,23 +70,12 @@ public class MainActivity extends AppCompatActivity implements BleScannerFragmen
         connectDialog.setCancelable(false);
         connectDialog.setCanceledOnTouchOutside(false);
         connectDialog.setIndeterminate(true);
-        connectDialog.setButton(DialogInterface.BUTTON_NEGATIVE, getString(android.R.string.cancel), (dialogInterface, i) -> {
-            mwBoard.disconnectAsync();
-        });
+        connectDialog.setButton(DialogInterface.BUTTON_NEGATIVE, getString(android.R.string.cancel), (dialogInterface, i) -> metawear.disconnectAsync());
         connectDialog.show();
 
-        mwBoard.connectAsync()
-                .continueWithTask(task -> {
-                    if (task.isCancelled()) {
-                        return task;
-                    }
-                    return task.isFaulted() ? reconnect(mwBoard) : Task.forResult(null);
-                })
+        metawear.connectAsync().continueWithTask(task -> task.isCancelled() || !task.isFaulted() ? task : reconnect(metawear))
                 .continueWith(task -> {
                     if (!task.isCancelled()) {
-                        mwBoard.getModule(Settings.class).editBleConnParams()
-                                .maxConnectionInterval(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? 11.25f : 7.5f)
-                                .commit();
                         runOnUiThread(connectDialog::dismiss);
                         Intent navActivityIntent = new Intent(MainActivity.this, DeviceSetupActivity.class);
                         navActivityIntent.putExtra(DeviceSetupActivity.EXTRA_BT_DEVICE, device);
@@ -110,14 +97,6 @@ public class MainActivity extends AppCompatActivity implements BleScannerFragmen
     }
 
     public static Task<Void> reconnect(final MetaWearBoard board) {
-        return board.connectAsync()
-                .continueWithTask(task -> {
-                    if (task.isFaulted()) {
-                        return reconnect(board);
-                    } else if (task.isCancelled()) {
-                        return task;
-                    }
-                    return Task.forResult(null);
-                });
+        return board.connectAsync().continueWithTask(task -> task.isFaulted() ? reconnect(board) : task);
     }
 }

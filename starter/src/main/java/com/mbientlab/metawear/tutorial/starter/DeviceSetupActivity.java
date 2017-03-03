@@ -50,8 +50,6 @@ import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.android.BtleService;
 import com.mbientlab.metawear.tutorial.starter.DeviceSetupActivityFragment.FragmentSettings;
 
-import bolts.Task;
-
 import static android.content.DialogInterface.*;
 
 public class DeviceSetupActivity extends AppCompatActivity implements ServiceConnection, FragmentSettings {
@@ -104,7 +102,7 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
     }
 
     private BluetoothDevice btDevice;
-    private MetaWearBoard mwBoard;
+    private MetaWearBoard metawear;
 
     private final String RECONNECT_DIALOG_TAG= "reconnect_dialog_tag";
 
@@ -130,7 +128,7 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
     public boolean onOptionsItemSelected(MenuItem item) {
         switch(item.getItemId()) {
             case R.id.action_disconnect:
-                mwBoard.disconnectAsync();
+                metawear.disconnectAsync();
                 finish();
                 return true;
         }
@@ -140,24 +138,18 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
 
     @Override
     public void onBackPressed() {
-        mwBoard.disconnectAsync();
+        metawear.disconnectAsync();
         super.onBackPressed();
     }
 
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
-        mwBoard= ((BtleService.LocalBinder) service).getMetaWearBoard(btDevice);
-        mwBoard.onUnexpectedDisconnect(status -> {
+        metawear = ((BtleService.LocalBinder) service).getMetaWearBoard(btDevice);
+        metawear.onUnexpectedDisconnect(status -> {
             ReconnectDialogFragment dialogFragment= ReconnectDialogFragment.newInstance(btDevice);
             dialogFragment.show(getSupportFragmentManager(), RECONNECT_DIALOG_TAG);
 
-            mwBoard.connectAsync()
-                    .continueWithTask(task -> {
-                        if (task.isCancelled()) {
-                            return task;
-                        }
-                        return task.isFaulted() ? MainActivity.reconnect(mwBoard) : Task.forResult(null);
-                    })
+            metawear.connectAsync().continueWithTask(task -> task.isCancelled() || !task.isFaulted() ? task : MainActivity.reconnect(metawear))
                     .continueWith(task -> {
                         if (!task.isCancelled()) {
                             runOnUiThread(() -> {

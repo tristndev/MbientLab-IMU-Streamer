@@ -35,6 +35,7 @@ import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothDevice;
 import android.content.ComponentName;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
@@ -49,6 +50,9 @@ import android.view.MenuItem;
 import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.android.BtleService;
 import com.mbientlab.metawear.tutorial.starter.DeviceSetupActivityFragment.FragmentSettings;
+
+import bolts.Continuation;
+import bolts.Task;
 
 import static android.content.DialogInterface.*;
 
@@ -84,9 +88,12 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
             reconnectDialog.setCancelable(false);
             reconnectDialog.setCanceledOnTouchOutside(false);
             reconnectDialog.setIndeterminate(true);
-            reconnectDialog.setButton(BUTTON_NEGATIVE, getString(android.R.string.cancel), (dialogInterface, i) -> {
-                currentMwBoard.disconnectAsync();
-                getActivity().finish();
+            reconnectDialog.setButton(BUTTON_NEGATIVE, getString(android.R.string.cancel), new OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    currentMwBoard.disconnectAsync();
+                    getActivity().finish();
+                }
             });
 
             return reconnectDialog;
@@ -145,23 +152,36 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
         metawear = ((BtleService.LocalBinder) service).getMetaWearBoard(btDevice);
-        metawear.onUnexpectedDisconnect(status -> {
-            ReconnectDialogFragment dialogFragment= ReconnectDialogFragment.newInstance(btDevice);
-            dialogFragment.show(getSupportFragmentManager(), RECONNECT_DIALOG_TAG);
+        metawear.onUnexpectedDisconnect(new MetaWearBoard.UnexpectedDisconnectHandler() {
+            @Override
+            public void disconnected(int status) {
+                ReconnectDialogFragment dialogFragment= ReconnectDialogFragment.newInstance(btDevice);
+                dialogFragment.show(getSupportFragmentManager(), RECONNECT_DIALOG_TAG);
 
-            metawear.connectAsync().continueWithTask(task -> task.isCancelled() || !task.isFaulted() ? task : MainActivity.reconnect(metawear))
-                    .continueWith(task -> {
+                metawear.connectAsync().continueWithTask(new Continuation<Void, Task<Void>>() {
+                    @Override
+                    public Task<Void> then(Task<Void> task) throws Exception {
+                        return task.isCancelled() || !task.isFaulted() ? task : MainActivity.reconnect(metawear);
+                    }
+                }).continueWith(new Continuation<Void, Void>() {
+                    @Override
+                    public Void then(Task<Void> task) throws Exception {
                         if (!task.isCancelled()) {
-                            runOnUiThread(() -> {
-                                ((DialogFragment) getSupportFragmentManager().findFragmentByTag(RECONNECT_DIALOG_TAG)).dismiss();
-                                ((DeviceSetupActivityFragment) getSupportFragmentManager().findFragmentById(R.id.device_setup_fragment)).reconnected();
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    ((DialogFragment) getSupportFragmentManager().findFragmentByTag(RECONNECT_DIALOG_TAG)).dismiss();
+                                    ((DeviceSetupActivityFragment) getSupportFragmentManager().findFragmentById(R.id.device_setup_fragment)).reconnected();
+                                }
                             });
                         } else {
                             finish();
                         }
 
                         return null;
-                    });
+                    }
+                });
+            }
         });
     }
 

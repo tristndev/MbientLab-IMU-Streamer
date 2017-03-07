@@ -45,11 +45,17 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ListView;
 
 import com.mbientlab.metawear.AsyncDataProducer;
+import com.mbientlab.metawear.Data;
 import com.mbientlab.metawear.MetaWearBoard;
+import com.mbientlab.metawear.Route;
+import com.mbientlab.metawear.Subscriber;
 import com.mbientlab.metawear.android.BtleService;
+import com.mbientlab.metawear.builder.RouteBuilder;
+import com.mbientlab.metawear.builder.RouteComponent;
 import com.mbientlab.metawear.data.SensorOrientation;
 import com.mbientlab.metawear.module.Accelerometer;
 import com.mbientlab.metawear.module.AccelerometerBosch;
@@ -59,6 +65,8 @@ import com.mbientlab.metawear.module.Switch;
 
 import java.util.HashMap;
 
+import bolts.Capture;
+import bolts.Continuation;
 import bolts.Task;
 
 /**
@@ -97,53 +105,111 @@ public class MainActivityFragment extends Fragment implements ServiceConnection 
 
         newDeviceState.connecting= true;
         connectedDevices.add(newDeviceState);
-
         stateToBoards.put(newDeviceState, newBoard);
 
-        newBoard.onUnexpectedDisconnect((status) -> getActivity().runOnUiThread(() -> connectedDevices.remove(newDeviceState)));
-        newBoard.connectAsync().continueWith(task -> {
-            if (task.isFaulted()) {
-                connectedDevices.remove(newDeviceState);
-            } else {
-                getActivity().runOnUiThread(() -> {
-                    newDeviceState.connecting= false;
-                    connectedDevices.notifyDataSetChanged();
+        final Capture<AsyncDataProducer> orientCapture = new Capture<>();
+        final Capture<Accelerometer> accelCapture = new Capture<>();
+
+        newBoard.onUnexpectedDisconnect(new MetaWearBoard.UnexpectedDisconnectHandler() {
+            @Override
+            public void disconnected(int status) {
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        connectedDevices.remove(newDeviceState);
+                    }
+                });
+            }
+        });
+        newBoard.connectAsync().onSuccessTask(new Continuation<Void, Task<Route>>() {
+            @Override
+            public Task<Route> then(Task<Void> task) throws Exception {
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        newDeviceState.connecting= false;
+                        connectedDevices.notifyDataSetChanged();
+                    }
                 });
 
-                Accelerometer accelerometer = newBoard.getModule(Accelerometer.class);
+                final Accelerometer accelerometer = newBoard.getModule(Accelerometer.class);
+                accelCapture.set(accelerometer);
 
-                AsyncDataProducer orientation;
+                final AsyncDataProducer orientation;
                 if (accelerometer instanceof AccelerometerBosch) {
                     orientation = ((AccelerometerBosch) accelerometer).orientation();
                 } else {
                     orientation = ((AccelerometerMma8452q) accelerometer).orientation();
                 }
-                orientation.addRouteAsync(source -> source.stream((data, env) ->
-                        getActivity().runOnUiThread(() -> {
-                            newDeviceState.deviceOrientation = data.value(SensorOrientation.class).toString();
-                            connectedDevices.notifyDataSetChanged();
-                        })
-                )).onSuccessTask(ignored -> newBoard.getModule(Switch.class).state().addRouteAsync(source ->
-                        source.stream((data, env) -> getActivity().runOnUiThread(() -> {
-                            newDeviceState.pressed = data.value(Boolean.class);
-                            connectedDevices.notifyDataSetChanged();
-                        }))
-                )).continueWith(routeTask -> {
-                    if (routeTask.isFaulted()) {
-                        Snackbar.make(getActivity().findViewById(R.id.activity_main_layout), routeTask.getError().getLocalizedMessage(), Snackbar.LENGTH_SHORT).show();
-                        newBoard.tearDown();
-                        newBoard.disconnectAsync().continueWith(ignored -> {
-                            connectedDevices.remove(newDeviceState);
-                            return null;
+                orientCapture.set(orientation);
+
+                return orientation.addRouteAsync(new RouteBuilder() {
+                    @Override
+                    public void configure(RouteComponent source) {
+                        source.stream(new Subscriber() {
+                            @Override
+                            public void apply(final Data data, Object... env) {
+                                getActivity().runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        newDeviceState.deviceOrientation = data.value(SensorOrientation.class).toString();
+                                        connectedDevices.notifyDataSetChanged();
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        }).onSuccessTask(new Continuation<Route, Task<Route>>() {
+            @Override
+            public Task<Route> then(Task<Route> task) throws Exception {
+                return newBoard.getModule(Switch.class).state().addRouteAsync(new RouteBuilder() {
+                    @Override
+                    public void configure(RouteComponent source) {
+                        source.stream(new Subscriber() {
+                            @Override
+                            public void apply(final Data data, Object... env) {
+                                getActivity().runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        newDeviceState.pressed = data.value(Boolean.class);
+                                        connectedDevices.notifyDataSetChanged();
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        }).continueWith(new Continuation<Route, Void>() {
+            @Override
+            public Void then(Task<Route> task) throws Exception {
+                if (task.isFaulted()) {
+                    if (!newBoard.isConnected()) {
+                        getActivity().runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                connectedDevices.remove(newDeviceState);
+                            }
                         });
                     } else {
-                        orientation.start();
-                        accelerometer.start();
+                        Snackbar.make(getActivity().findViewById(R.id.activity_main_layout), task.getError().getLocalizedMessage(), Snackbar.LENGTH_SHORT).show();
+                        newBoard.tearDown();
+                        newBoard.disconnectAsync().continueWith(new Continuation<Void, Void>() {
+                            @Override
+                            public Void then(Task<Void> task) throws Exception {
+                                connectedDevices.remove(newDeviceState);
+                                return null;
+                            }
+                        });
                     }
-                    return null;
-                }, Task.UI_THREAD_EXECUTOR);
+                } else {
+                    orientCapture.get().start();
+                    accelCapture.get().start();
+                }
+                return null;
             }
-            return null;
         });
     }
 
@@ -159,23 +225,26 @@ public class MainActivityFragment extends Fragment implements ServiceConnection 
     public void onViewCreated(View view, Bundle savedInstanceState) {
         ListView connectedDevicesView= (ListView) view.findViewById(R.id.connected_devices);
         connectedDevicesView.setAdapter(connectedDevices);
-        connectedDevicesView.setOnItemLongClickListener((parent, view1, position, id) -> {
-            DeviceState current= connectedDevices.getItem(position);
-            final MetaWearBoard selectedBoard= stateToBoards.get(current);
+        connectedDevicesView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                DeviceState current= connectedDevices.getItem(position);
+                final MetaWearBoard selectedBoard= stateToBoards.get(current);
 
-            Accelerometer accelerometer = selectedBoard.getModule(Accelerometer.class);
-            accelerometer.stop();
-            if (accelerometer instanceof AccelerometerBosch) {
-                ((AccelerometerBosch) accelerometer).orientation().stop();
-            } else {
-                ((AccelerometerMma8452q) accelerometer).orientation().stop();
+                Accelerometer accelerometer = selectedBoard.getModule(Accelerometer.class);
+                accelerometer.stop();
+                if (accelerometer instanceof AccelerometerBosch) {
+                    ((AccelerometerBosch) accelerometer).orientation().stop();
+                } else {
+                    ((AccelerometerMma8452q) accelerometer).orientation().stop();
+                }
+
+                selectedBoard.tearDown();
+                selectedBoard.getModule(Debug.class).disconnectAsync();
+
+                connectedDevices.remove(current);
+                return false;
             }
-
-            selectedBoard.tearDown();
-            selectedBoard.getModule(Debug.class).disconnectAsync();
-
-            connectedDevices.remove(current);
-            return false;
         });
     }
 

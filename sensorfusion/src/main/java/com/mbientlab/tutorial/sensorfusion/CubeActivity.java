@@ -11,13 +11,21 @@ import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
+import com.mbientlab.metawear.Data;
 import com.mbientlab.metawear.MetaWearBoard;
+import com.mbientlab.metawear.Route;
+import com.mbientlab.metawear.Subscriber;
 import com.mbientlab.metawear.android.BtleService;
+import com.mbientlab.metawear.builder.RouteBuilder;
+import com.mbientlab.metawear.builder.RouteComponent;
 import com.mbientlab.metawear.data.Quaternion;
 import com.mbientlab.metawear.module.Debug;
 import com.mbientlab.metawear.module.SensorFusionBosch;
 import com.mbientlab.metawear.module.SensorFusionBosch.*;
 import com.mbientlab.metawear.module.Settings;
+
+import bolts.Continuation;
+import bolts.Task;
 
 public class CubeActivity extends AppCompatActivity implements ServiceConnection {
     public final static String EXTRA_BT_DEVICE= "com.mbientlab.tutorial.sensorfusion.CubeActivity.EXTRA_BT_DEVICE";
@@ -78,18 +86,29 @@ public class CubeActivity extends AppCompatActivity implements ServiceConnection
         BtleService.LocalBinder binder = (BtleService.LocalBinder) service;
         board = binder.getMetaWearBoard(btDevice);
 
-        SensorFusionBosch sensorFusion = board.getModule(SensorFusionBosch.class);
+        final SensorFusionBosch sensorFusion = board.getModule(SensorFusionBosch.class);
         sensorFusion.configure()
                 .mode(Mode.NDOF)
                 .accRange(AccRange.AR_2G)
                 .gyroRange(GyroRange.GR_250DPS)
                 .commit();
-        sensorFusion.quaternion().addRouteAsync(source ->
-                source.limit(33).stream((msg, env) -> mGLSurfaceView.updateRotation(msg.value(Quaternion.class)))
-        ).continueWith(ignored -> {
-            sensorFusion.quaternion().start();
-            sensorFusion.start();
-            return null;
+        sensorFusion.quaternion().addRouteAsync(new RouteBuilder() {
+            @Override
+            public void configure(RouteComponent source) {
+                source.limit(33).stream(new Subscriber() {
+                    @Override
+                    public void apply(Data data, Object... env) {
+                        mGLSurfaceView.updateRotation(data.value(Quaternion.class));
+                    }
+                });
+            }
+        }).continueWith(new Continuation<Route, Void>() {
+            @Override
+            public Void then(Task<Route> ignored) throws Exception {
+                sensorFusion.quaternion().start();
+                sensorFusion.start();
+                return null;
+            }
         });
     }
 

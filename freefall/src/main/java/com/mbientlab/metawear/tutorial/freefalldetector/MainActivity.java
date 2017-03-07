@@ -16,15 +16,24 @@ import android.os.IBinder;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 
+import com.mbientlab.metawear.Data;
 import com.mbientlab.metawear.MetaWearBoard;
+import com.mbientlab.metawear.Route;
+import com.mbientlab.metawear.Subscriber;
 import com.mbientlab.metawear.android.BtleService;
+import com.mbientlab.metawear.builder.RouteBuilder;
+import com.mbientlab.metawear.builder.RouteComponent;
 import com.mbientlab.metawear.builder.filter.Comparison;
 import com.mbientlab.metawear.builder.filter.ThresholdOutput;
 import com.mbientlab.metawear.builder.function.Function1;
 import com.mbientlab.metawear.module.Accelerometer;
 import com.mbientlab.metawear.module.Debug;
 import com.mbientlab.metawear.module.Logging;
+
+import bolts.Continuation;
+import bolts.Task;
 
 public class MainActivity extends Activity implements ServiceConnection {
 
@@ -41,19 +50,36 @@ public class MainActivity extends Activity implements ServiceConnection {
 
         getApplicationContext().bindService(new Intent(this, BtleService.class), this, Context.BIND_AUTO_CREATE);
 
-        findViewById(R.id.start_accel).setOnClickListener(v -> {
-            logging.start(false);
-            accelerometer.acceleration().start();
-            accelerometer.start();
+        findViewById(R.id.start_accel).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                logging.start(false);
+                accelerometer.acceleration().start();
+                accelerometer.start();
+            }
         });
-        findViewById(R.id.stop_accel).setOnClickListener(v -> {
-            accelerometer.stop();
-            accelerometer.acceleration().stop();
+        findViewById(R.id.stop_accel).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                accelerometer.stop();
+                accelerometer.acceleration().stop();
 
-            logging.stop();
-            logging.downloadAsync().continueWith(ignored -> Log.i(LOG_TAG, "Log download complete"));
+                logging.stop();
+                logging.downloadAsync().continueWith(new Continuation<Void, Void>() {
+                    @Override
+                    public Void then(Task<Void> task) throws Exception {
+                        Log.i(LOG_TAG, "Log download complete");
+                        return null;
+                    }
+                });
+            }
         });
-        findViewById(R.id.reset_board).setOnClickListener(v -> debug.resetAsync());
+        findViewById(R.id.reset_board).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                debug.resetAsync();
+            }
+        });
     }
 
     @Override
@@ -94,29 +120,47 @@ public class MainActivity extends Activity implements ServiceConnection {
         BluetoothDevice btDevice= btManager.getAdapter().getRemoteDevice(mwMacAddress);
 
         mwBoard= serviceBinder.getMetaWearBoard(btDevice);
-        mwBoard.connectAsync().onSuccessTask(task -> {
-            accelerometer = mwBoard.getModule(Accelerometer.class);
-            accelerometer.configure()
-                    .odr(50f)
-                    .commit();
-            return accelerometer.acceleration().addRouteAsync(source ->
-                    source.map(Function1.RSS)
-                        .average((byte) 4)
-                        .filter(ThresholdOutput.BINARY, 0.5f)
-                        .multicast()
-                            .to().filter(Comparison.EQ, -1).log((msg, env) -> Log.i(LOG_TAG, msg.formattedTimestamp() + ": Entered Free Fall"))
-                            .to().filter(Comparison.EQ, 1).log((msg, env) -> Log.i(LOG_TAG, msg.formattedTimestamp() + ": Left Free Fall"))
-                        .end());
-        }).continueWith(task -> {
-            if (task.isFaulted()) {
-                Log.e(LOG_TAG, "Error connecting", task.getError());
-            } else {
-                Log.i(LOG_TAG, "Connected");
-                debug = mwBoard.getModule(Debug.class);
-                logging= mwBoard.getModule(Logging.class);
+        mwBoard.connectAsync().onSuccessTask(new Continuation<Void, Task<Route>>() {
+            @Override
+            public Task<Route> then(Task<Void> task) throws Exception {
+                accelerometer = mwBoard.getModule(Accelerometer.class);
+                accelerometer.configure()
+                        .odr(50f)
+                        .commit();
+                return accelerometer.acceleration().addRouteAsync(new RouteBuilder() {
+                    @Override
+                    public void configure(RouteComponent source) {
+                        source.map(Function1.RSS).average((byte) 4).filter(ThresholdOutput.BINARY, 0.5f)
+                                .multicast()
+                                    .to().filter(Comparison.EQ, -1).log(new Subscriber() {
+                                        @Override
+                                        public void apply(Data data, Object... env) {
+                                            Log.i(LOG_TAG, data.formattedTimestamp() + ": Entered Free Fall");
+                                        }
+                                    })
+                                    .to().filter(Comparison.EQ, 1).log(new Subscriber() {
+                                        @Override
+                                        public void apply(Data data, Object... env) {
+                                            Log.i(LOG_TAG, data.formattedTimestamp() + ": Left Free Fall");
+                                        }
+                                    })
+                                .end();
+                    }
+                });
             }
+        }).continueWith(new Continuation<Route, Void>() {
+            @Override
+            public Void then(Task<Route> task) throws Exception {
+                if (task.isFaulted()) {
+                    Log.e(LOG_TAG, mwBoard.isConnected() ? "Error setting up route" : "Error connecting", task.getError());
+                } else {
+                    Log.i(LOG_TAG, "Connected");
+                    debug = mwBoard.getModule(Debug.class);
+                    logging= mwBoard.getModule(Logging.class);
+                }
 
-            return null;
+                return null;
+            }
         });
     }
 

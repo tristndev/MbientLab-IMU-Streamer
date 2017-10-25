@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId "com.mbientlab.metawear.tutorial.freefalldetector"
         minSdkVersion 18
-        targetSdkVersion 25
+        targetSdkVersion rootProject.ext.compileSdkVersion
         versionCode 1
         versionName "1.0"
     }

@@ -31,7 +31,7 @@ android {
     defaultConfig {
         applicationId "com.mbientlab.tutorial.sensorfusion"
         minSdkVersion 18
-        targetSdkVersion 25
+        targetSdkVersion rootProject.ext.compileSdkVersion
         versionCode 1
         versionName "1.0"
 
@@ -50,9 +50,9 @@ dependencies {
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    compile 'com.android.support:appcompat-v7:25.2.0'
     compile rootProject.ext.metawearSdk
     compile 'com.mbientlab.bletoolbox:scanner:0.2.3'
-    compile 'com.android.support:design:25.2.0'
+    compile "com.android.support:appcompat-v7:$rootProject.ext.supportLibVersion"
+    compile "com.android.support:design:$rootProject.ext.supportLibVersion"
     testCompile 'junit:junit:4.12'
 }

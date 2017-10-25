@@ -36,7 +36,7 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.3.0'
+        classpath 'com.android.tools.build:gradle:3.0.0'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -46,7 +46,7 @@ buildscript {
 allprojects {
     repositories {
         jcenter()
-
+        google()
         ivy {
             url "http://ivyrep.mbientlab.com"
             layout "gradle"
@@ -61,7 +61,8 @@ task clean(type: Delete) {
 ext {
     // copied global configuration from parse ui repo
     // https://github.com/ParsePlatform/ParseUI-Android/blob/master/build.gradle
-    compileSdkVersion = 25
-    buildToolsVersion = "25.0.2"
-    metawearSdk = 'com.mbientlab:metawear:3.0.0'
+    compileSdkVersion = 26
+    buildToolsVersion = "26.0.2"
+    supportLibVersion = "26.1.0"
+    metawearSdk = 'com.mbientlab:metawear:3.2.2'
 }

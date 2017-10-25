@@ -71,37 +71,20 @@ public class MainActivity extends AppCompatActivity implements BleScannerFragmen
         connectDialog.setCancelable(false);
         connectDialog.setCanceledOnTouchOutside(false);
         connectDialog.setIndeterminate(true);
-        connectDialog.setButton(DialogInterface.BUTTON_NEGATIVE, getString(android.R.string.cancel), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                metawear.disconnectAsync();
-            }
-        });
+        connectDialog.setButton(DialogInterface.BUTTON_NEGATIVE, getString(android.R.string.cancel), (dialogInterface, i) -> metawear.disconnectAsync());
         connectDialog.show();
 
-        metawear.connectAsync().continueWithTask(new Continuation<Void, Task<Void>>() {
-            @Override
-            public Task<Void> then(Task<Void> task) throws Exception {
-                return task.isCancelled() || !task.isFaulted() ? task : reconnect(metawear);
-            }
-        }).continueWith(new Continuation<Void, Void>() {
-            @Override
-            public Void then(Task<Void> task) throws Exception {
-                if (!task.isCancelled()) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            connectDialog.dismiss();
-                        }
-                    });
-                    Intent navActivityIntent = new Intent(MainActivity.this, DeviceSetupActivity.class);
-                    navActivityIntent.putExtra(DeviceSetupActivity.EXTRA_BT_DEVICE, device);
-                    startActivityForResult(navActivityIntent, REQUEST_START_APP);
-                }
+        metawear.connectAsync().continueWithTask(task -> task.isCancelled() || !task.isFaulted() ? task : reconnect(metawear))
+                .continueWith(task -> {
+                    if (!task.isCancelled()) {
+                        runOnUiThread(connectDialog::dismiss);
+                        Intent navActivityIntent = new Intent(MainActivity.this, DeviceSetupActivity.class);
+                        navActivityIntent.putExtra(DeviceSetupActivity.EXTRA_BT_DEVICE, device);
+                        startActivityForResult(navActivityIntent, REQUEST_START_APP);
+                    }
 
-                return null;
-            }
-        });
+                    return null;
+                });
     }
 
     @Override
@@ -115,11 +98,6 @@ public class MainActivity extends AppCompatActivity implements BleScannerFragmen
     }
 
     public static Task<Void> reconnect(final MetaWearBoard board) {
-        return board.connectAsync().continueWithTask(new Continuation<Void, Task<Void>>() {
-            @Override
-            public Task<Void> then(Task<Void> task) throws Exception {
-                return task.isFaulted() ? reconnect(board) : task;
-            }
-        });
+        return board.connectAsync().continueWithTask(task -> task.isFaulted() ? reconnect(board) : task);
     }
 }

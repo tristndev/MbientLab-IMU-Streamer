@@ -110,47 +110,35 @@ public class ScannerActivity extends AppCompatActivity implements ScannerCommuni
         });
         connectDialog.show();
 
-        mwBoard.connectAsync()
-                .continueWithTask(new Continuation<Void, Task<Void>>() {
-                    @Override
-                    public Task<Void> then(Task<Void> task) throws Exception {
-                        if (task.isCancelled()) {
-                            return task;
-                        }
-                        return task.isFaulted() ? reconnect(mwBoard) : task;
+        mwBoard.connectAsync().continueWithTask(task -> {
+                    if (task.isCancelled()) {
+                        return task;
                     }
-                }).continueWith(new Continuation<Void, Void>() {
-                    @Override
-                    public Void then(Task<Void> task) throws Exception {
-                        if (!task.isCancelled()) {
-                            connectDialog.dismiss();
+                    return task.isFaulted() ? reconnect(mwBoard) : task;
+                }).continueWith(task -> {
+                    if (!task.isCancelled()) {
+                        connectDialog.dismiss();
 
-                            if (mwBoard.getModule(SensorFusionBosch.class) == null) {
-                                mwBoard.disconnectAsync();
-                                new AlertDialog.Builder(ScannerActivity.this)
-                                        .setCancelable(false)
-                                        .setTitle(R.string.dialog_title_error)
-                                        .setMessage(R.string.message_sensor_fusion)
-                                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int which) {
-                                                ((BleScannerFragment) getFragmentManager().findFragmentById(R.id.ble_scanner_fragment)).startBleScan();
-                                            }
-                                        })
-                                        .show();
-                            } else {
-                                mwBoard.getModule(Settings.class).editBleConnParams()
-                                        .maxConnectionInterval(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? 11.25f : 7.5f)
-                                        .commit();
+                        if (mwBoard.getModule(SensorFusionBosch.class) == null) {
+                            mwBoard.disconnectAsync();
+                            new AlertDialog.Builder(ScannerActivity.this)
+                                    .setCancelable(false)
+                                    .setTitle(R.string.dialog_title_error)
+                                    .setMessage(R.string.message_sensor_fusion)
+                                    .setPositiveButton(android.R.string.ok, (dialog, which) -> ((BleScannerFragment) getFragmentManager().findFragmentById(R.id.ble_scanner_fragment)).startBleScan())
+                                    .show();
+                        } else {
+                            mwBoard.getModule(Settings.class).editBleConnParams()
+                                    .maxConnectionInterval(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? 11.25f : 7.5f)
+                                    .commit();
 
-                                Intent navActivityIntent = new Intent(ScannerActivity.this, CubeActivity.class);
-                                navActivityIntent.putExtra(CubeActivity.EXTRA_BT_DEVICE, device);
-                                startActivityForResult(navActivityIntent, REQUEST_START_APP);
-                            }
+                            Intent navActivityIntent = new Intent(ScannerActivity.this, CubeActivity.class);
+                            navActivityIntent.putExtra(CubeActivity.EXTRA_BT_DEVICE, device);
+                            startActivityForResult(navActivityIntent, REQUEST_START_APP);
                         }
-
-                        return null;
                     }
+
+                    return null;
                 }, Task.UI_THREAD_EXECUTOR);
     }
 
@@ -166,16 +154,13 @@ public class ScannerActivity extends AppCompatActivity implements ScannerCommuni
 
     public static Task<Void> reconnect(final MetaWearBoard board) {
         return board.connectAsync()
-                .continueWithTask(new Continuation<Void, Task<Void>>() {
-                    @Override
-                    public Task<Void> then(Task<Void> task) throws Exception {
-                        if (task.isFaulted()) {
-                            return reconnect(board);
-                        } else if (task.isCancelled()) {
-                            return task;
-                        }
-                        return Task.forResult(null);
+                .continueWithTask(task -> {
+                    if (task.isFaulted()) {
+                        return reconnect(board);
+                    } else if (task.isCancelled()) {
+                        return task;
                     }
+                    return Task.forResult(null);
                 });
     }
 }

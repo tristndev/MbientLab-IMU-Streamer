@@ -56,12 +56,12 @@ public class ConnectedDevicesAdapter extends ArrayAdapter<DeviceState> {
             convertView= LayoutInflater.from(getContext()).inflate(R.layout.metawear_status, parent, false);
 
             viewHolder= new ViewHolder();
-            viewHolder.deviceName= (TextView) convertView.findViewById(R.id.status_device_name);
-            viewHolder.deviceAddress= (TextView) convertView.findViewById(R.id.status_mac_address);
-            viewHolder.deviceOrientation= (TextView) convertView.findViewById(R.id.status_orientation);
-            viewHolder.switchState= (RadioGroup) convertView.findViewById(R.id.status_button);
-            viewHolder.connectingText= (TextView) convertView.findViewById(R.id.text_connecting);
-            viewHolder.connectingProgress= (ProgressBar) convertView.findViewById(R.id.connecting_progress);
+            viewHolder.deviceName= convertView.findViewById(R.id.status_device_name);
+            viewHolder.deviceAddress= convertView.findViewById(R.id.status_mac_address);
+            viewHolder.deviceOrientation= convertView.findViewById(R.id.status_orientation);
+            viewHolder.switchState= convertView.findViewById(R.id.status_button);
+            viewHolder.connectingText= convertView.findViewById(R.id.text_connecting);
+            viewHolder.connectingProgress= convertView.findViewById(R.id.connecting_progress);
 
             convertView.setTag(viewHolder);
         } else {
@@ -109,9 +109,9 @@ public class ConnectedDevicesAdapter extends ArrayAdapter<DeviceState> {
     }
 
     private class ViewHolder {
-        public TextView deviceName, deviceAddress, deviceOrientation, connectingText;
-        public RadioGroup switchState;
-        public ProgressBar connectingProgress;
+        TextView deviceName, deviceAddress, deviceOrientation, connectingText;
+        RadioGroup switchState;
+        ProgressBar connectingProgress;
     }
 
     public void update(DeviceState newState) {

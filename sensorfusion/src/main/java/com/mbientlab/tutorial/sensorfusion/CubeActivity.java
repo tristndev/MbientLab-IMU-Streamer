@@ -92,23 +92,12 @@ public class CubeActivity extends AppCompatActivity implements ServiceConnection
                 .accRange(AccRange.AR_2G)
                 .gyroRange(GyroRange.GR_250DPS)
                 .commit();
-        sensorFusion.quaternion().addRouteAsync(new RouteBuilder() {
-            @Override
-            public void configure(RouteComponent source) {
-                source.limit(33).stream(new Subscriber() {
-                    @Override
-                    public void apply(Data data, Object... env) {
-                        mGLSurfaceView.updateRotation(data.value(Quaternion.class));
-                    }
-                });
-            }
-        }).continueWith(new Continuation<Route, Void>() {
-            @Override
-            public Void then(Task<Route> ignored) throws Exception {
-                sensorFusion.quaternion().start();
-                sensorFusion.start();
-                return null;
-            }
+        sensorFusion.quaternion().addRouteAsync(source -> source.limit(33).stream((data, env) -> {
+            mGLSurfaceView.updateRotation(data.value(Quaternion.class));
+        })).continueWith((Continuation<Route, Void>) ignored -> {
+            sensorFusion.quaternion().start();
+            sensorFusion.start();
+            return null;
         });
     }
 

@@ -63,6 +63,6 @@ ext {
     // https://github.com/ParsePlatform/ParseUI-Android/blob/master/build.gradle
     compileSdkVersion = 26
     buildToolsVersion = "26.0.2"
-    supportLibVersion = "26.1.0"
+    supportLibVersion = "27.0.0"
     metawearSdk = 'com.mbientlab:metawear:3.2.2'
 }

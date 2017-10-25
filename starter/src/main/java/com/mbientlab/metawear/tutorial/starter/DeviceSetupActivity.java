@@ -88,12 +88,9 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
             reconnectDialog.setCancelable(false);
             reconnectDialog.setCanceledOnTouchOutside(false);
             reconnectDialog.setIndeterminate(true);
-            reconnectDialog.setButton(BUTTON_NEGATIVE, getString(android.R.string.cancel), new OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
-                    currentMwBoard.disconnectAsync();
-                    getActivity().finish();
-                }
+            reconnectDialog.setButton(BUTTON_NEGATIVE, getString(android.R.string.cancel), (dialogInterface, i) -> {
+                currentMwBoard.disconnectAsync();
+                getActivity().finish();
             });
 
             return reconnectDialog;
@@ -117,7 +114,7 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_device_setup);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         btDevice= getIntent().getParcelableExtra(EXTRA_BT_DEVICE);
@@ -152,36 +149,23 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
         metawear = ((BtleService.LocalBinder) service).getMetaWearBoard(btDevice);
-        metawear.onUnexpectedDisconnect(new MetaWearBoard.UnexpectedDisconnectHandler() {
-            @Override
-            public void disconnected(int status) {
-                ReconnectDialogFragment dialogFragment= ReconnectDialogFragment.newInstance(btDevice);
-                dialogFragment.show(getSupportFragmentManager(), RECONNECT_DIALOG_TAG);
+        metawear.onUnexpectedDisconnect(status -> {
+            ReconnectDialogFragment dialogFragment= ReconnectDialogFragment.newInstance(btDevice);
+            dialogFragment.show(getSupportFragmentManager(), RECONNECT_DIALOG_TAG);
 
-                metawear.connectAsync().continueWithTask(new Continuation<Void, Task<Void>>() {
-                    @Override
-                    public Task<Void> then(Task<Void> task) throws Exception {
-                        return task.isCancelled() || !task.isFaulted() ? task : MainActivity.reconnect(metawear);
-                    }
-                }).continueWith(new Continuation<Void, Void>() {
-                    @Override
-                    public Void then(Task<Void> task) throws Exception {
+            metawear.connectAsync().continueWithTask(task -> task.isCancelled() || !task.isFaulted() ? task : MainActivity.reconnect(metawear))
+                    .continueWith((Continuation<Void, Void>) task -> {
                         if (!task.isCancelled()) {
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    ((DialogFragment) getSupportFragmentManager().findFragmentByTag(RECONNECT_DIALOG_TAG)).dismiss();
-                                    ((DeviceSetupActivityFragment) getSupportFragmentManager().findFragmentById(R.id.device_setup_fragment)).reconnected();
-                                }
+                            runOnUiThread(() -> {
+                                ((DialogFragment) getSupportFragmentManager().findFragmentByTag(RECONNECT_DIALOG_TAG)).dismiss();
+                                ((DeviceSetupActivityFragment) getSupportFragmentManager().findFragmentById(R.id.device_setup_fragment)).reconnected();
                             });
                         } else {
                             finish();
                         }
 
                         return null;
-                    }
-                });
-            }
+                    });
         });
     }
 

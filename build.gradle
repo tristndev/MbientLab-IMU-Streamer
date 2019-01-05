@@ -37,7 +37,7 @@ buildscript {
         google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.1.0'
+        classpath 'com.android.tools.build:gradle:3.2.1'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -63,7 +63,7 @@ ext {
     // copied global configuration from parse ui repo
     // https://github.com/ParsePlatform/ParseUI-Android/blob/master/build.gradle
     compileSdkVersion = 27
-    buildToolsVersion = "27.0.3"
+    buildToolsVersion = "28.0.3"
     supportLibVersion = "27.1.0"
-    metawearSdk = 'com.mbientlab:metawear:3.4.0'
+    metawearSdk = 'com.mbientlab:metawear:3.7.1'
 }

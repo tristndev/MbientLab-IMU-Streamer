@@ -30,9 +30,27 @@
   -->
 
 <resources>
-    <string name="app_name">MetaWear Android Starter</string>
+    <string name="app_name">MbientLab IMU Streamer</string>
     <string name="title_connecting">Connecting</string>
     <string name="title_reconnect_attempt">Reconnecting</string>
     <string name="message_wait">Please wait</string>
     <string name="action_disconnect">Disconnect</string>
+    <string name="tableHeader1">key 1</string>
+    <string name="tableHeader2">key 2</string>
+    <string name="tableHeader3">key 3</string>
+    <string name="tableHeader4">key 4</string>
+    <string name="tableVal1">val 1</string>
+    <string name="tableVal2">val 2</string>
+    <string name="tableVal3">val 3</string>
+    <string name="tableVal4">val 4</string>
+    <string name="led_switch">LED</string>
+    <string name="network_setup">Network Setup</string>
+    <string name="ip_field_hint">IP address</string>
+    <string name="port_field_hint">Port</string>
+    <string name="stream_switch">UDP Streaming</string>
+    <string name="sensordata_text">Sensor Fusion Data</string>
+    <string name="sensorfusion_switch">Sensor Fusion Sampling</string>
+    <string name="radio_label_mode_selection">Data Format</string>
+    <string name="radiobutton1">Euler Angles</string>
+    <string name="radiobutton2">Quaternions</string>
 </resources>

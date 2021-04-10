@@ -54,4 +54,7 @@
 
     <include layout="@layout/content_device_setup" />
 
+
 </android.support.design.widget.CoordinatorLayout>
+
+

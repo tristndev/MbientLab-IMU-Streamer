@@ -174,6 +174,7 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
 
     }
 
+
     @Override
     public BluetoothDevice getBtDevice() {
         return btDevice;

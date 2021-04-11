@@ -5,6 +5,9 @@ A simple Android App that enables streaming the IMU sensor values (namely Sensor
 
 * [ ] Remove the remaining example directories (freefall, multimw, sensorfusion)
 * [ ] Add UDP Socket streaming
+  * Ressources:
+    * https://stackoverflow.com/questions/19540715/send-and-receive-data-on-udp-socket-java-android
+    * https://android-er.blogspot.com/2016/05/android-datagramudp-client-example.html
 
 ## :copyright: Credit
 

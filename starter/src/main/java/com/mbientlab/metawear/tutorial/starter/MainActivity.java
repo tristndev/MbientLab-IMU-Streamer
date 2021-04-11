@@ -25,6 +25,7 @@ public class MainActivity extends AppCompatActivity implements BleScannerFragmen
     private BtleService.LocalBinder serviceBinder;
     private MetaWearBoard metawear;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -100,4 +101,5 @@ public class MainActivity extends AppCompatActivity implements BleScannerFragmen
     public static Task<Void> reconnect(final MetaWearBoard board) {
         return board.connectAsync().continueWithTask(task -> task.isFaulted() ? reconnect(board) : task);
     }
+
 }

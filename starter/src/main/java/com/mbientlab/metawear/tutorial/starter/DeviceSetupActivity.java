@@ -39,13 +39,18 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
 
 import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.android.BtleService;
@@ -58,6 +63,14 @@ import static android.content.DialogInterface.*;
 
 public class DeviceSetupActivity extends AppCompatActivity implements ServiceConnection, FragmentSettings {
     public final static String EXTRA_BT_DEVICE= "com.mbientlab.metawear.starter.DeviceSetupActivity.EXTRA_BT_DEVICE";
+
+    // UDP Socket Attributes
+    EditText editTextAddress, editTextPort;
+    Button buttonConnect;
+    TextView textViewState, textViewRx;
+
+    UDPClientHandler udpClientHandler;
+    UDPClientThread udpClientThread;
 
     public static class ReconnectDialogFragment extends DialogFragment implements  ServiceConnection {
         private static final String KEY_BLUETOOTH_DEVICE = "com.mbientlab.metawear.starter.DeviceSetupActivity.ReconnectDialogFragment.KEY_BLUETOOTH_DEVICE";
@@ -119,6 +132,25 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
 
         btDevice= getIntent().getParcelableExtra(EXTRA_BT_DEVICE);
         getApplicationContext().bindService(new Intent(this, BtleService.class), this, BIND_AUTO_CREATE);
+
+        // Socket Logic
+        editTextAddress = (EditText) findViewById(R.id.ip_address);
+        editTextPort = (EditText) findViewById(R.id.port);
+        buttonConnect = (Button) findViewById(R.id.connect);
+        textViewState = (TextView)findViewById(R.id.state);
+        textViewRx = (TextView)findViewById(R.id.received);
+
+        buttonConnect.setOnClickListener(x -> {
+            udpClientThread = new UDPClientThread(
+                    editTextAddress.getText().toString(),
+                    Integer.parseInt(editTextPort.getText().toString()),
+                    udpClientHandler);
+            udpClientThread.start();
+
+            //buttonConnect.setEnabled(false);
+        });
+
+        udpClientHandler = new UDPClientHandler(this);
     }
 
     @Override
@@ -178,5 +210,50 @@ public class DeviceSetupActivity extends AppCompatActivity implements ServiceCon
     @Override
     public BluetoothDevice getBtDevice() {
         return btDevice;
+    }
+
+
+
+    private void updateState(String state){
+        textViewState.setText(state);
+    }
+
+    private void updateRxMsg(String rxmsg){
+        textViewRx.append(rxmsg + "\n");
+    }
+
+    private void clientEnd(){
+        udpClientThread = null;
+        textViewState.setText("clientEnd()");
+        //buttonConnect.setEnabled(true);
+    }
+
+    public static class UDPClientHandler extends Handler {
+        public static final int UPDATE_STATE = 0;
+        public static final int UPDATE_MSG = 1;
+        public static final int UPDATE_END = 2;
+        private DeviceSetupActivity parent;
+
+        public UDPClientHandler(DeviceSetupActivity parent) {
+            super();
+            this.parent = parent;
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what){
+                case UPDATE_STATE:
+                    parent.updateState((String)msg.obj);
+                    break;
+                case UPDATE_MSG:
+                    parent.updateRxMsg((String)msg.obj);
+                    break;
+                case UPDATE_END:
+                    parent.clientEnd();
+                    break;
+                default:
+                    super.handleMessage(msg);
+            }
+        }
     }
 }

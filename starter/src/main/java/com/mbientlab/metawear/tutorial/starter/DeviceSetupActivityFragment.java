@@ -39,7 +39,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.os.Message;
 import android.support.v4.app.Fragment;
 import android.os.Bundle;
@@ -82,7 +81,7 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
 
     public static final String MODE_EULER = "euler";
     public static final String MODE_QUAT = "quat";
-    private String sensorFusionMode = MODE_EULER;
+    private String sensorFusionMode = MODE_QUAT;
 
     private boolean udpStreamingActive = false;
 
@@ -175,16 +174,17 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
         });
 
         // >> Test Button
+        /*
         ((Button) view.findViewById(R.id.button_change_vals)).setOnClickListener(x -> {
             Log.d("Tristan","Button pressed");
             TextView tv = (TextView)view.findViewById(R.id.tableVal1);
             tv.setText("Changed");
         });
+        */
 
         // >> Radio Buttons (Mode selection)
         RadioGroup rGroup = (RadioGroup) view.findViewById(R.id.fusionModeSelectionGroup);
 
-        // TODO: Handle initial selection?
         rGroup.setOnCheckedChangeListener((group, checkedId) -> {
             Log.d("Radio group", "checked ID: "+checkedId);
             RadioButton checkedRadioButton = (RadioButton) group.findViewById(checkedId);
@@ -294,8 +294,8 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
 
     private void sendUDPMessage(String jsonString) {
         Message msg = Message.obtain(udpHandlerThread.getHandler());
-        if (sensorFusionMode.equals(MODE_EULER)) {
-            msg.what = UDPHandlerThread.UDP_SEND_EULER;
+        if (sensorFusionMode.equals(MODE_EULER) || sensorFusionMode.equals(MODE_QUAT)) {
+            msg.what = UDPHandlerThread.UDP_SEND_SENSOR_VALS;
             msg.obj = jsonString;
         } else {
             // TODO: Different mode needed?
@@ -326,10 +326,10 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
                 //Log.d("Sensor Fusion [Euler]", angles.toString());
 
                 if (udpStreamingActive) {
-                    sendUDPMessage(String.format(Locale.ENGLISH, "{'%s':%.4f, '%s':%.4f, '%s':%.4f, '%s':%.4f}",
+                    sendUDPMessage(String.format(Locale.ENGLISH, "{\"%s\":%.4f, \"%s\":%.4f, \"%s\":%.4f, \"%s\":%.4f}",
                             "heading", angles.heading(),
                             "pitch", angles.pitch(),
-                            "roll", angles.pitch(),
+                            "roll", angles.roll(),
                             "yaw", angles.yaw()
                     ));
                 }
@@ -345,6 +345,16 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
             sensorFusion.quaternion().addRouteAsync(source -> source.stream((data, env) -> {
                 final Quaternion quaternion = data.value(Quaternion.class);
                 //Log.d("Sensor Fusion [Quat]", quaternion.toString());
+
+                if (udpStreamingActive) {
+                    sendUDPMessage(String.format(Locale.ENGLISH, "{\"%s\":%.4f, \"%s\":%.4f, \"%s\":%.4f, \"%s\":%.4f}",
+                            "w", quaternion.w(),
+                            "x", quaternion.x(),
+                            "y", quaternion.y(),
+                            "z", quaternion.z()
+                    ));
+                }
+
                 updateTableVals(new Float[] {quaternion.w(), quaternion.x(), quaternion.y(), quaternion.z()});
             })).continueWith(task -> {
                 streamRoute = task.getResult();

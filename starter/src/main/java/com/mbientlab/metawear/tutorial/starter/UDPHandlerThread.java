@@ -2,7 +2,6 @@ package com.mbientlab.metawear.tutorial.starter;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.res.Resources;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
@@ -21,7 +20,7 @@ public class UDPHandlerThread extends HandlerThread {
 
     // Tasks
     public static final int SETUP_SOCKET = 0;
-    public static final int UDP_SEND_EULER = 1;
+    public static final int UDP_SEND_SENSOR_VALS = 1;
 
     private Handler handler;
 
@@ -73,8 +72,8 @@ public class UDPHandlerThread extends HandlerThread {
             @Override
             public void handleMessage(Message msg) {
                 switch(msg.what) {
-                    case UDP_SEND_EULER:
-                        Log.d(TAG, "Received euler: " + msg.obj.toString());
+                    case UDP_SEND_SENSOR_VALS:
+                        //Log.d(TAG, "Received euler: " + msg.obj.toString());
                         DatagramPacket dp = new DatagramPacket(msg.obj.toString().getBytes(),
                                 msg.obj.toString().length(), servAddr, servPort);
                         try {

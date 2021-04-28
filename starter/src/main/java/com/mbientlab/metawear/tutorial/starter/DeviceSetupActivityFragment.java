@@ -93,11 +93,15 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
     private UDPHandlerThread udpHandlerThread;
     private TextView socketStateTextView;
 
+    private Handler tableUIHandler;
+
     public DeviceSetupActivityFragment() {
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        tableUIHandler = new Handler();
+
         super.onCreate(savedInstanceState);
 
         Activity owner= getActivity();
@@ -333,7 +337,13 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
                             "yaw", angles.yaw()
                     ));
                 }
-                updateTableVals(new Float[] {angles.heading(), angles.pitch(), angles.roll(), angles.yaw()});
+
+                tableUIHandler.post (new Runnable() {
+                    @Override
+                    public void run() {
+                        updateTableVals(new Float[] {angles.heading(), angles.pitch(), angles.roll(), angles.yaw()});
+                    }
+                });
             })).continueWith(task -> {
                 streamRoute = task.getResult();
                 sensorFusion.eulerAngles().start();
@@ -355,7 +365,13 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
                     ));
                 }
 
-                updateTableVals(new Float[] {quaternion.w(), quaternion.x(), quaternion.y(), quaternion.z()});
+                tableUIHandler.post (new Runnable() {
+                    @Override
+                    public void run() {
+                        updateTableVals(new Float[] {quaternion.w(), quaternion.x(), quaternion.y(), quaternion.z()});
+                    }
+                });
+
             })).continueWith(task -> {
                 streamRoute = task.getResult();
                 sensorFusion.quaternion().start();

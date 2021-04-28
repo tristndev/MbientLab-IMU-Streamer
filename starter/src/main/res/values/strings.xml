@@ -53,4 +53,9 @@
     <string name="radio_label_mode_selection">Data Format</string>
     <string name="radiobutton1">Euler Angles</string>
     <string name="radiobutton2">Quaternions</string>
+    <string name="socketStatusLabel">Socket Status:</string>
+    <string name="socketStatusDisconnected">❌ disconnected</string>
+    <string name="socketStatusConnected">✔ connected</string>
+    <string name="socketStatusError">❗ Error</string>
+
 </resources>

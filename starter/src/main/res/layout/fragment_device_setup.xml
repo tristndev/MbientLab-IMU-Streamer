@@ -55,64 +55,6 @@
             android:text="@string/led_switch" />
 
         <View
-            android:id="@+id/seperator"
-            android:layout_width="match_parent"
-            android:layout_height="2dp"
-            android:layout_marginTop="10dp"
-            android:background="#c0c0c0" />
-
-        <TextView
-            android:id="@+id/setupText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/network_setup"
-            android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
-
-        <LinearLayout
-            android:id="@+id/IPPortLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:baselineAligned="false">
-
-            <android.support.design.widget.TextInputLayout
-                android:id="@+id/IPInputLayout"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:layout_width="wrap_content">
-
-                <android.support.design.widget.TextInputEditText
-                    android:id="@+id/ip_address"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:digits="0123456789."
-                    android:hint="@string/ip_field_hint"
-                    android:inputType="number|numberDecimal" />
-            </android.support.design.widget.TextInputLayout>
-
-            <android.support.design.widget.TextInputLayout
-                android:id="@+id/PortInputLayout"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_width="wrap_content">
-
-                <android.support.design.widget.TextInputEditText
-                    android:id="@+id/port"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:digits="0123456789."
-                    android:hint="@string/port_field_hint"
-                    android:inputType="number|numberDecimal" />
-            </android.support.design.widget.TextInputLayout>
-        </LinearLayout>
-
-        <Switch
-            android:id="@+id/stream_switch"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/stream_switch" />
-
-        <View
             android:id="@+id/separator2"
             android:layout_width="match_parent"
             android:layout_height="2dp"
@@ -192,12 +134,6 @@
 
         </TableLayout>
 
-        <Button
-            android:id="@+id/button_change_vals"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Change Vals" />
-
         <RadioGroup
             android:id="@+id/fusionModeSelectionGroup"
             android:layout_width="match_parent"
@@ -216,7 +152,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:checked="true"
+                android:checked="false"
                 android:text="@string/radiobutton1" />
 
             <RadioButton
@@ -224,6 +160,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:checked="true"
                 android:text="@string/radiobutton2" />
         </RadioGroup>
 
@@ -232,6 +169,85 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/sensorfusion_switch" />
+
+        <View
+            android:id="@+id/seperator"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_marginTop="10dp"
+            android:background="#c0c0c0" />
+
+        <TextView
+            android:id="@+id/setupText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/network_setup"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/socketStatusLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/socketStatusLabel" />
+
+            <TextView
+                android:id="@+id/socketStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:text="@string/socketStatusDisconnected" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/IPPortLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <android.support.design.widget.TextInputLayout
+                android:id="@+id/IPInputLayout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="2">
+
+                <android.support.design.widget.TextInputEditText
+                    android:id="@+id/ip_address"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:digits="0123456789."
+                    android:hint="@string/ip_field_hint"
+                    android:inputType="number|numberDecimal" />
+            </android.support.design.widget.TextInputLayout>
+
+            <android.support.design.widget.TextInputLayout
+                android:id="@+id/PortInputLayout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1">
+
+                <android.support.design.widget.TextInputEditText
+                    android:id="@+id/port"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:digits="0123456789"
+                    android:hint="@string/port_field_hint"
+                    android:inputType="number|numberDecimal" />
+            </android.support.design.widget.TextInputLayout>
+        </LinearLayout>
+
+        <Switch
+            android:id="@+id/stream_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/stream_switch"
+            android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
 
     </LinearLayout>
 

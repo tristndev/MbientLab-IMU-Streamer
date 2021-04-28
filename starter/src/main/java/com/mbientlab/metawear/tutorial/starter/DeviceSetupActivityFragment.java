@@ -37,19 +37,19 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.support.v4.app.Fragment;
 import android.os.Bundle;
-import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
-import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 
@@ -78,9 +78,20 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
 
     private SensorFusionBosch sensorFusion;
     protected Route streamRoute = null;
-    private String sensorFusionMode = "euler";
+
+    public static final String MODE_EULER = "euler";
+    public static final String MODE_QUAT = "quat";
+    private String sensorFusionMode = MODE_QUAT;
+
+    private boolean udpStreamingActive = false;
 
     private TextView[] valTextViews;
+
+
+    private final String DEFAULT_IP = "192.168.2.103";
+    private final String DEFAULT_PORT = "2055";
+    private UDPHandlerThread udpHandlerThread;
+    private TextView socketStateTextView;
 
     public DeviceSetupActivityFragment() {
     }
@@ -94,7 +105,7 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
             throw new ClassCastException("Owning activity must implement the FragmentSettings interface");
         }
 
-        settings= (FragmentSettings) owner;
+        settings = (FragmentSettings) owner;
         owner.getApplicationContext().bindService(new Intent(owner, BtleService.class), this, Context.BIND_AUTO_CREATE);
     }
 
@@ -102,6 +113,7 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
     public void onDestroy() {
         super.onDestroy();
 
+        udpHandlerThread.quit();
         ///< Unbind the service when the activity is destroyed
         getActivity().getApplicationContext().unbindService(this);
     }
@@ -137,6 +149,8 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
                 (TextView) view.findViewById(R.id.tableVal3),
                 (TextView) view.findViewById(R.id.tableVal4)};
 
+        socketStateTextView = (TextView) view.findViewById(R.id.socketStatus);
+
         if (boardReady) {
             try {
                 boardReady();
@@ -160,32 +174,33 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
         });
 
         // >> Test Button
+        /*
         ((Button) view.findViewById(R.id.button_change_vals)).setOnClickListener(x -> {
             Log.d("Tristan","Button pressed");
             TextView tv = (TextView)view.findViewById(R.id.tableVal1);
             tv.setText("Changed");
         });
+        */
 
         // >> Radio Buttons (Mode selection)
         RadioGroup rGroup = (RadioGroup) view.findViewById(R.id.fusionModeSelectionGroup);
 
-        // TODO: Handle initial selection?
         rGroup.setOnCheckedChangeListener((group, checkedId) -> {
             Log.d("Radio group", "checked ID: "+checkedId);
             RadioButton checkedRadioButton = (RadioButton) group.findViewById(checkedId);
 
             if (checkedId == R.id.radioButton1) {
                 Log.d("Radio group", "Selected button: Euler");
-                sensorFusionMode = "euler";
+                sensorFusionMode = MODE_EULER;
             } else {
                 // if (checkedId == R.id.radioButton2) {
                 Log.d("Radio group", "Selected button: Quaternion");
-                sensorFusionMode = "quat";
+                sensorFusionMode = MODE_QUAT;
             }
             updateTableHeaders(view, sensorFusionMode);
         } );
 
-        // >> Button (Sampling)
+        // >> Switch SAMPLING
         ((Switch) view.findViewById(R.id.sensorFusionSwitch)).setOnCheckedChangeListener((compoundButton, b) -> {
             // SensorFusion Setup
             sensorFusion = metawear.getModule(SensorFusionBosch.class);
@@ -203,6 +218,50 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
                 }
             }
         });
+
+        // >> Switch STREAMING
+        ((Switch) view.findViewById(R.id.stream_switch)).setOnCheckedChangeListener(((compoundButton, b) -> {
+            if (b) {
+                checkIPPortOrDefault(view);
+                String ip = ((EditText)view.findViewById(R.id.ip_address)).getText().toString();
+                int port = Integer.parseInt(((EditText)view.findViewById(R.id.port)).getText().toString());
+
+                udpHandlerThread = new UDPHandlerThread(ip, port, new UIHandler(this), this.getContext());
+                udpHandlerThread.start();
+
+
+                // TODO: Somehow perform the socketSetup() from the thread logic (now is done in start() )
+
+                // Issue if we send a message: Handler is not ready yet (created after the looper is ready)
+                //Message msg = Message.obtain(udpHandlerThread.getHandler(), UDPHandlerThread.SETUP_SOCKET);
+                //msg.sendToTarget();
+
+                // Issue if we wait for it: The UI update does not work anymore.
+                /*
+                while (udpHandlerThread.getHandler() == null) {
+
+                }
+                */
+                //udpHandlerThread.getHandler().sendEmptyMessage(UDPHandlerThread.SETUP_SOCKET);
+
+                udpStreamingActive = true;
+            } else {
+                udpStreamingActive = false;
+                udpHandlerThread.quit();
+            }
+        }));
+    }
+
+
+    private void checkIPPortOrDefault(View view) {
+        EditText ipField = ((EditText)view.findViewById(R.id.ip_address));
+        EditText portField = ((EditText)view.findViewById(R.id.port));
+        if (ipField.getText().toString().length() == 0) {
+            ipField.setText(DEFAULT_IP);
+        }
+        if (portField.getText().toString().length() == 0) {
+            portField.setText(DEFAULT_PORT);
+        }
     }
 
     private void enableDisableRadioButtons(View view, boolean enableDisable) {
@@ -222,7 +281,7 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
         };
 
         String[] headerNames = new String[4];
-        if (mode.equals("euler")) {
+        if (mode.equals(MODE_EULER)) {
             headerNames = new String[] {"heading", "pitch", "roll", "yaw"};
         } else {
             headerNames = new String[] {"w", "x", "y", "z"};
@@ -233,8 +292,21 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
         }
     }
 
+    private void sendUDPMessage(String jsonString) {
+        Message msg = Message.obtain(udpHandlerThread.getHandler());
+        if (sensorFusionMode.equals(MODE_EULER) || sensorFusionMode.equals(MODE_QUAT)) {
+            msg.what = UDPHandlerThread.UDP_SEND_SENSOR_VALS;
+            msg.obj = jsonString;
+        } else {
+            // TODO: Different mode needed?
+        }
+        msg.sendToTarget();
+    }
 
-
+    /**
+     * Updates the 4 values in the sampling table.
+     * @param vals
+     */
     private void updateTableVals(Float[] vals) {
         for (int i = 0; i<valTextViews.length; i++) {
             valTextViews[i].setText(String.format("%.2f", vals[i]));
@@ -252,6 +324,15 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
             sensorFusion.eulerAngles().addRouteAsync(source -> source.stream((data, env) -> {
                 final EulerAngles angles = data.value(EulerAngles.class);
                 //Log.d("Sensor Fusion [Euler]", angles.toString());
+
+                if (udpStreamingActive) {
+                    sendUDPMessage(String.format(Locale.ENGLISH, "{\"%s\":%.4f, \"%s\":%.4f, \"%s\":%.4f, \"%s\":%.4f}",
+                            "heading", angles.heading(),
+                            "pitch", angles.pitch(),
+                            "roll", angles.roll(),
+                            "yaw", angles.yaw()
+                    ));
+                }
                 updateTableVals(new Float[] {angles.heading(), angles.pitch(), angles.roll(), angles.yaw()});
             })).continueWith(task -> {
                 streamRoute = task.getResult();
@@ -264,6 +345,16 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
             sensorFusion.quaternion().addRouteAsync(source -> source.stream((data, env) -> {
                 final Quaternion quaternion = data.value(Quaternion.class);
                 //Log.d("Sensor Fusion [Quat]", quaternion.toString());
+
+                if (udpStreamingActive) {
+                    sendUDPMessage(String.format(Locale.ENGLISH, "{\"%s\":%.4f, \"%s\":%.4f, \"%s\":%.4f, \"%s\":%.4f}",
+                            "w", quaternion.w(),
+                            "x", quaternion.x(),
+                            "y", quaternion.y(),
+                            "z", quaternion.z()
+                    ));
+                }
+
                 updateTableVals(new Float[] {quaternion.w(), quaternion.x(), quaternion.y(), quaternion.z()});
             })).continueWith(task -> {
                 streamRoute = task.getResult();
@@ -272,6 +363,42 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
 
                 return null;
             });
+        }
+    }
+
+    private void updateState(String state){
+        socketStateTextView.setText(state);
+    }
+
+    private void clientEnd(){
+        socketStateTextView.setText("clientEnd()");
+        //buttonConnect.setEnabled(true);
+    }
+
+    public static class UIHandler extends Handler {
+        public static final int UPDATE_STATE = 0;
+        public static final int UPDATE_END = 1;
+
+        private final DeviceSetupActivityFragment parent;
+
+        public UIHandler(DeviceSetupActivityFragment parent) {
+            super();
+            this.parent = parent;
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case UPDATE_STATE:
+                    parent.updateState((String) msg.obj);
+                    break;
+                case UPDATE_END:
+                    parent.clientEnd();
+                    break;
+                default:
+                    super.handleMessage(msg);
+                    super.handleMessage(msg);
+            }
         }
     }
 

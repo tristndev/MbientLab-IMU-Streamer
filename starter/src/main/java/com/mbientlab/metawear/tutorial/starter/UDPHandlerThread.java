@@ -5,6 +5,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
+import android.os.NetworkOnMainThreadException;
 import android.os.Process;
 import android.util.Log;
 
@@ -29,6 +30,8 @@ public class UDPHandlerThread extends HandlerThread {
     private String rawIPaddress;
     private int servPort;
 
+    private boolean socketSetupDone = false;
+
     DeviceSetupActivityFragment.UIHandler uiHandler;
     Context context;
 
@@ -41,7 +44,6 @@ public class UDPHandlerThread extends HandlerThread {
         servPort = port;
         rawIPaddress = ipaddress;
 
-        setupSocket();
         Log.d(TAG, "New thread constructed. With ip " + ipaddress + " on port " + port);
     }
 
@@ -49,16 +51,17 @@ public class UDPHandlerThread extends HandlerThread {
         try {
             ds = new DatagramSocket();
             servAddr = InetAddress.getByName(rawIPaddress);
-            uiHandler.handleMessage(Message.obtain(uiHandler,
+            uiHandler.sendMessage(Message.obtain(uiHandler,
                     DeviceSetupActivityFragment.UIHandler.UPDATE_STATE,
                     context.getResources().getString(R.string.socketStatusConnected)));
+            socketSetupDone = true;
         } catch (SocketException e) {
-            uiHandler.handleMessage(Message.obtain(uiHandler,
+            uiHandler.sendMessage(Message.obtain(uiHandler,
                     DeviceSetupActivityFragment.UIHandler.UPDATE_STATE,
                     context.getResources().getString(R.string.socketStatusError) + ": SocketException"));
             e.printStackTrace();
         } catch (UnknownHostException e) {
-            uiHandler.handleMessage(Message.obtain(uiHandler,
+            uiHandler.sendMessage(Message.obtain(uiHandler,
                     DeviceSetupActivityFragment.UIHandler.UPDATE_STATE,
                     context.getResources().getString(R.string.socketStatusError) + ": UnknownHostException"));
             e.printStackTrace();
@@ -68,6 +71,11 @@ public class UDPHandlerThread extends HandlerThread {
     @SuppressLint("HandlerLeak")
     @Override
     protected void onLooperPrepared() {
+        setupHandler();
+    }
+
+    @SuppressLint("HandlerLeak")
+    private void setupHandler() {
         handler = new Handler() {
             @Override
             public void handleMessage(Message msg) {
@@ -77,7 +85,11 @@ public class UDPHandlerThread extends HandlerThread {
                         DatagramPacket dp = new DatagramPacket(msg.obj.toString().getBytes(),
                                 msg.obj.toString().length(), servAddr, servPort);
                         try {
-                            ds.send(dp);
+                            if (socketSetupDone && ds != null) {
+                                ds.send(dp);
+                            } else {
+                                setupSocket();
+                            }
                         } catch (IOException e) {
                             e.printStackTrace();
                         }

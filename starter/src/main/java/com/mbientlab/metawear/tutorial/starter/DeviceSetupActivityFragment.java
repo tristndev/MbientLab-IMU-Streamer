@@ -177,14 +177,6 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
             }
         });
 
-        // >> Test Button
-        /*
-        ((Button) view.findViewById(R.id.button_change_vals)).setOnClickListener(x -> {
-            Log.d("Tristan","Button pressed");
-            TextView tv = (TextView)view.findViewById(R.id.tableVal1);
-            tv.setText("Changed");
-        });
-        */
 
         // >> Radio Buttons (Mode selection)
         RadioGroup rGroup = (RadioGroup) view.findViewById(R.id.fusionModeSelectionGroup);
@@ -232,21 +224,6 @@ public class DeviceSetupActivityFragment extends Fragment implements ServiceConn
 
                 udpHandlerThread = new UDPHandlerThread(ip, port, new UIHandler(this), this.getContext());
                 udpHandlerThread.start();
-
-
-                // TODO: Somehow perform the socketSetup() from the thread logic (now is done in start() )
-
-                // Issue if we send a message: Handler is not ready yet (created after the looper is ready)
-                //Message msg = Message.obtain(udpHandlerThread.getHandler(), UDPHandlerThread.SETUP_SOCKET);
-                //msg.sendToTarget();
-
-                // Issue if we wait for it: The UI update does not work anymore.
-                /*
-                while (udpHandlerThread.getHandler() == null) {
-
-                }
-                */
-                //udpHandlerThread.getHandler().sendEmptyMessage(UDPHandlerThread.SETUP_SOCKET);
 
                 udpStreamingActive = true;
             } else {

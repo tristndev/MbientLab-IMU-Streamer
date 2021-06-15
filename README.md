@@ -4,7 +4,8 @@ A simple Android App that enables streaming the IMU sensor values (namely Sensor
 ## :memo: ToDo
 
 * [ ] Remove the remaining example directories (freefall, multimw, sensorfusion)
-* [ ] Add UDP Socket streaming
+* [ ] Recheck rotation calculations (is there something off?)
+* [ ] Extract APK
 
 ## :copyright: Credit
 

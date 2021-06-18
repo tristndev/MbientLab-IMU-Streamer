@@ -23,7 +23,7 @@ In the **UDP streaming** view, you can...
 
 * For Quaternions (all values within `[-1, 1]`)
 
-  ```
+  ```json
   {"w": 0.1234, "x": 0.1234, "y": 0.1234, "z": 0.1234}
 
 ## :copyright: Credits
